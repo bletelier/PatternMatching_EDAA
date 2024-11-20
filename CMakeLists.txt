@@ -4,7 +4,7 @@ project(PM-EDAA
   DESCRIPTION "Pattern Matching: Proyecto 2 EDAA"
   LANGUAGES CXX
 )
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include_directories("${PROJECT_SOURCE_DIR}/external/googletest/include"
