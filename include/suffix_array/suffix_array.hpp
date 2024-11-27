@@ -6,7 +6,6 @@
 #include <fstream>
 
 namespace edaa {
-  template <bool has_lcp = false>
   class suffix_array {
     public:
       typedef uint64_t                size_type;
@@ -20,7 +19,29 @@ namespace edaa {
       t_iv   lcp;
       size_type text_size;
     private:
-      void calculate_lcp() {
+      
+    public:
+      suffix_array() {};
+
+      suffix_array(t_str input_file) {
+        t_str input = "input/" + input_file;
+        sdsl::load_vector_from_file(text, input, 1);
+        if (text.size()==0 or text[text.size()-1] != 0) {
+          text.resize(text.size()+1);
+          text[text.size()-1] = 0;
+        }
+        sdsl::qsufsort::construct_sa(sa, text);
+        text_size = (size_type) text.size();
+        //calculate_lcp();
+      }
+           
+      void print_ids() {
+        for(int i = 0; i < 6; ++i)
+          std::cout << sa[i] << ' ';
+        std::cout << '\n';
+      }
+
+      void compute_lcp() {
         int n = sa.size();
 
         lcp = t_iv(n, 0);
@@ -69,26 +90,6 @@ namespace edaa {
         }
       }
 
-    public:
-      suffix_array() {};
-
-      suffix_array(t_str input_file) {
-        t_str input = "input/" + input_file;
-        sdsl::load_vector_from_file(text, input, 1);
-        if (text.size()==0 or text[text.size()-1] != 0) {
-          text.resize(text.size()+1);
-          text[text.size()-1] = 0;
-        }
-        sdsl::qsufsort::construct_sa(sa, text);
-        text_size = (size_type) text.size();
-        calculate_lcp();
-      }
-           
-      void print_ids() {
-        for(int i = 0; i < 6; ++i)
-          std::cout << sa[i] << ' ';
-        std::cout << '\n';
-      }
 
       size_type serialize(std::ostream& out, sdsl::structure_tree_node* v=nullptr, std::string name="")const {
         sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));

@@ -17,5 +17,5 @@ include_directories("${PROJECT_SOURCE_DIR}/external/googletest/include"
 )
 add_subdirectory(external/sdsl-lite)
 
-add_executable(main src/main.cpp)
-target_link_libraries(main sdsl divsufsort divsufsort64)
+add_executable(create src/create.cpp)
+target_link_libraries(create sdsl divsufsort divsufsort64)
