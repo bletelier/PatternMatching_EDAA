@@ -9,7 +9,8 @@ namespace edaa {
   template <bool has_lcp = false>
   class suffix_array {
     public:
-      typedef uint64_t                      size_type;
+      typedef uint64_t                size_type;
+      typedef uint64_t                t_64;
       typedef sdsl::int_vector<>      t_iv;
       typedef sdsl::int_vector<8>     t_1v;
       typedef std::string             t_str;
@@ -19,7 +20,54 @@ namespace edaa {
       t_iv   lcp;
       size_type text_size;
     private:
-      void calculate_lcp() {};
+      void calculate_lcp() {
+        int n = sa.size();
+
+        lcp = t_iv(n, 0);
+
+        // An auxiliary array to store inverse of suffix array
+        // elements. For example if suffixArr[0] is 5, the
+        // invSuff[5] would store 0.  This is used to get next
+        // suffix string from suffix array.
+        t_iv invSuff(n, 0);
+
+        // Fill values in invSuff[]
+        for (t_64 i=0; i < n; i++)
+          invSuff[sa[i]] = i;
+
+        // Initialize length of previous LCP
+        t_64 k = 0;
+
+        // Process all suffixes one by one starting from
+        // first suffix in txt[]
+        for (t_64 i=0; i<n; i++)
+        {
+          /* If the current suffix is at n-1, then we don’t
+             have next substring to consider. So lcp is not
+             defined for this substring, we put zero. */
+          if (invSuff[i] == n-1)
+          {
+            k = 0;
+            continue;
+          }
+
+          /* j contains index of the next substring to
+             be considered  to compare with the present
+             substring, i.e., next string in suffix array */
+          t_64 j = sa[invSuff[i]+1];
+
+          // Directly start matching from k'th index as
+          // at-least k-1 characters will match
+          while (i+k<n && j+k<n && text[i+k]==text[j+k])
+            k++;
+
+          lcp[invSuff[i]] = k; // lcp for the present suffix.
+
+          // Deleting the starting character from the string.
+          if (k>0)
+            k--;
+        }
+      }
 
     public:
       suffix_array() {};
@@ -33,9 +81,9 @@ namespace edaa {
         }
         sdsl::qsufsort::construct_sa(sa, text);
         text_size = (size_type) text.size();
-        if(has_lcp) calculate_lcp();
+        calculate_lcp();
       }
-
+           
       void print_ids() {
         for(int i = 0; i < 6; ++i)
           std::cout << sa[i] << ' ';

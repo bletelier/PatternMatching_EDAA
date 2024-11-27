@@ -12,3 +12,5 @@ _deps
 CMakeUserPresets.json
 *.sdsl
 build/
+input/
+!input/example.txt
