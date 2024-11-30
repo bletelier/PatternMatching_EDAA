@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <sdsl/suffix_trees.hpp>
+#include <sdsl/rmq_support.hpp>
 #include <fstream>
 
 namespace edaa {
@@ -18,13 +19,14 @@ namespace edaa {
       t_iv   sa;
       t_iv   lcp;
       size_type text_size;
+      sdsl::rmq_succinct_sct<> rmq;
     private:
       
     public:
       suffix_array() {};
 
       suffix_array(t_str input_file) {
-        t_str input = "input/" + input_file;
+        t_str input = input_file;
         sdsl::load_vector_from_file(text, input, 1);
         if (text.size()==0 or text[text.size()-1] != 0) {
           text.resize(text.size()+1);
@@ -71,7 +73,7 @@ namespace edaa {
             k = 0;
             continue;
           }
-
+  
           /* j contains index of the next substring to
              be considered  to compare with the present
              substring, i.e., next string in suffix array */
@@ -88,6 +90,141 @@ namespace edaa {
           if (k>0)
             k--;
         }
+        rmq = sdsl::rmq_succinct_sct<>(&lcp);
+      }
+
+
+
+      //pido perdon a todos los que creyeron en mi, me rindo. No pude hacer que
+      //la funcion encuentre el upper_bound, probe de miles de formas y todas
+      //las veces me encuentra el lower_bound. BLete.
+      //PD: no se si esta función este funcional, llevo una semana implementandolo
+      //y lo deje tirado luego de miles de pruebas asi que no se en que quedó.
+      //Basicamente buscaba hacer la técnica de max-skipping usando el LCE 
+      //(Longest Common Extension) entre sufijos del texto y el LCP que ibamos
+      //descubriendo entre el text[sa[m]] con P (un poco la idea de min-skipping).
+      //La cosa es que funcionó para encontrar el lower_bound, pero el upper_bound
+      //me fue imposible. Aplique la idea propuesta en:
+      //https://courses.csail.mit.edu/6.851/spring07/psets/ps4-sol.pdf y otros sitios
+      //que dice que el LCE(i,j) = min(LCP[i], LCP[i+1],...,LCP[j-1]) con una rmq
+      //+ la idea de min-skipping de ir encontrando el LCP entre el patrón y texto
+      //a medida que avanzamos sobre la BS.
+      t_64 count_with(t_64 pos, t_64 len) {
+        t_64 l = 1, r = text_size - 1;
+        t_64 lb = text_size;
+        t_64 mcp = 0, lce, mid, path = 1,  p_id;
+        bool match;
+        lce = lcp[rmq(l,r)];
+        t_64 c =0;
+        while(l < r) {
+          mid = l + (r-l)/2;
+          if(mcp < lce and l < r) {
+            if(path == 1) {
+              r = mid - 1;
+              t_64 mid2 = l + (r-l)/2;
+              lce = lcp[rmq(mid2,r)];
+            }
+            else {
+              l = mid + 1;
+              t_64 mid2 = l + (r-l)/2;
+              lce = lcp[rmq(l, mid2)];
+            }
+          }
+          else if(mcp > lce and l < r) {
+            if(path == 1) {
+              l = mid + 1;
+              t_64 mid2 = l + (r-l)/2;
+              lce = lcp[rmq(l, mid2)];
+            }
+            else {
+              r = mid - 1;
+              t_64 mid2 = l + (r-l)/2;
+              lce = lcp[rmq(mid2, r)];
+            }
+          }
+          else {
+            match = true;
+            for(p_id = mcp; p_id < len; ++p_id) {
+              if(text[sa[mid] + p_id] > text[pos + p_id]) {
+                match = false;
+                path = 1;
+                mcp = p_id;
+                r = mid ;
+                lce = lcp[rmq(l, r)];
+                break;
+              }
+              else if(text[sa[mid] + p_id] < text[pos + p_id]) {
+                match = false;
+                mcp = p_id;
+                path = 2;
+                l = mid + 1;
+                lce = lcp[rmq(l, r)];
+                break;
+              }
+            }
+            if(match) {
+              lb = mid;
+              l = mid + 1; 
+              if(l > r) break;
+              mcp = 0;
+              lce = lcp[rmq(l, r)];
+              path = 1;
+            }
+
+          }
+        }
+        return lb;
+      }
+
+      t_64 count_without(t_str pat) {
+        t_64 l = 1, r = text_size - 1; 
+        t_64 lb = text_size;
+        t_64 len = (t_64) pat.size();
+        while(l <= r) {
+          t_64 mid = l + (r-l)/2;
+          bool match = true;
+          for(t_64 p_id = 0; p_id < len; ++p_id) {
+            if(text[sa[mid] + p_id] > pat[p_id]) {
+              match = false;
+              r = mid - 1;
+              break;
+            }
+            else if(text[sa[mid] + p_id] < pat[p_id]) {
+              match = false;
+              l = mid + 1;
+              break;
+            }
+          }
+          if(match) {
+            lb = mid;
+            r = mid - 1; 
+          }
+        }
+        if(lb == text_size) return 0;
+
+        l = lb, r = text_size - 1; 
+        t_64 rb = text_size;
+        while(l <= r) {
+          t_64 mid = l + (r-l)/2;
+          bool match = true;
+          for(t_64 p_id = 0; p_id < len; ++p_id) {
+            if(text[sa[mid] + p_id] > pat[p_id]) {
+              match = false;
+              r = mid - 1;
+              break;
+            }
+            else if(text[sa[mid] + p_id] < pat[p_id]) {
+              match = false;
+              l = mid + 1;
+              break;
+            }
+          }
+          if(match) {
+            rb = mid;
+            l = mid + 1; 
+          }
+        }
+        return rb - lb + 1;
       }
 
 
@@ -97,9 +234,12 @@ namespace edaa {
 
         written_bytes += text.serialize(out, child, "text");
         written_bytes += sa.serialize(out, child, "sa");
-        written_bytes += lcp.serialize(out, child, "lcp");
         written_bytes += sdsl::write_member(text_size, out, child, "text_size");
-        
+
+
+        written_bytes += lcp.serialize(out, child, "lcp");//no tiene nada
+        written_bytes += rmq.serialize(out, child, "rmq");//no tiene nada
+
         sdsl::structure_tree::add_size(child, written_bytes);
         return written_bytes;
       }
@@ -107,8 +247,9 @@ namespace edaa {
       void load(std::istream& in) {
         text.load(in);
         sa.load(in);
-        lcp.load(in);
         sdsl::read_member(text_size, in);
+        lcp.load(in);//nada
+        rmq.load(in);//nada
       }
       
   };
