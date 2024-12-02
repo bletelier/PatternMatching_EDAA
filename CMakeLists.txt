@@ -19,3 +19,6 @@ add_subdirectory(external/sdsl-lite)
 
 add_executable(create src/create.cpp)
 target_link_libraries(create sdsl divsufsort divsufsort64)
+
+add_executable(query src/uhr_count_fn.cpp)
+target_link_libraries(query sdsl divsufsort divsufsort64)
